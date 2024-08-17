@@ -14,7 +14,7 @@ class TestInterpreter(unittest.TestCase):
         self.assertEqual(result, 7)
 
     def test_factorial(self):
-        source_code = '''
+        source_code = """
         defun factorial(n) {
           if (n == 0) {
             return 1;
@@ -23,7 +23,7 @@ class TestInterpreter(unittest.TestCase):
           }
         }
         factorial(5)
-        '''
+        """
         lexer = Lexer(source_code)
         parser = Parser(lexer)
         ast = parser.parse()

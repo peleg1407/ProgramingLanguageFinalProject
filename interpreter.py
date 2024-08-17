@@ -1,6 +1,6 @@
 from environment import Environment
 from lexer import TokenType
-from parser import Function
+from parser import Function, Return
 
 class Interpreter:
     def __init__(self):
@@ -64,6 +64,9 @@ class Interpreter:
         env.set(node.name, func)
         return func
 
+    def visit_Lambda(self, node, env):
+        return Function(None, node.params, node.body, env)
+
     def visit_Call(self, node, env):
         func = self.visit(node.func, env)
         if not isinstance(func, Function):
@@ -73,7 +76,10 @@ class Interpreter:
         new_env = Environment(func.env)
         for param, arg in zip(func.params, node.args):
             new_env.set(param, self.visit(arg, env))
-        return self.visit(func.body, new_env)
+        result = self.visit(func.body, new_env)
+        if isinstance(result, Return):
+            return result.value
+        return result
 
     def visit_If(self, node, env):
         condition = self.visit(node.condition, env)
@@ -82,6 +88,9 @@ class Interpreter:
         elif node.else_branch:
             return self.visit(node.else_branch, env)
         return None
+
+    def visit_Return(self, node, env):
+        return Return(self.visit(node.value, env))
 
     def eval(self, node, env=None):
         if env is None:

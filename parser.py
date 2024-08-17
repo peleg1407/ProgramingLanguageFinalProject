@@ -36,8 +36,14 @@ class If(AST):
         self.else_branch = else_branch
 
 class Function(AST):
-    def __init__(self, name, params, body):
+    def __init__(self, name, params, body, env=None):
         self.name = name
+        self.params = params
+        self.body = body
+        self.env = env
+
+class Lambda(AST):
+    def __init__(self, params, body):
         self.params = params
         self.body = body
 
@@ -45,6 +51,10 @@ class Call(AST):
     def __init__(self, func, args):
         self.func = func
         self.args = args
+
+class Return(AST):
+    def __init__(self, value):
+        self.value = value
 
 class Parser:
     def __init__(self, lexer):
@@ -84,7 +94,6 @@ class Parser:
         elif token.type == TokenType.IDENTIFIER:
             var_token = token
             self.eat(TokenType.IDENTIFIER)
-            # Check if the identifier is followed by '(' indicating a function call
             if self.current_token.type == TokenType.LPAREN:
                 self.eat(TokenType.LPAREN)
                 args = []
@@ -96,6 +105,8 @@ class Parser:
                 self.eat(TokenType.RPAREN)
                 return Call(var_token, args)
             return Var(var_token)
+        elif token.type == TokenType.LAMBDA:
+            return self.lambda_expr()
         else:
             self.error()
 
@@ -154,15 +165,14 @@ class Parser:
         return node
 
     def block(self):
-        """Parse a block of statements enclosed by '{' and '}'."""
         self.eat(TokenType.LBRACE)
         statements = []
         while self.current_token.type != TokenType.RBRACE:
             statements.append(self.statement())
         self.eat(TokenType.RBRACE)
         if len(statements) == 1:
-            return statements[0]  # If only one statement, return it directly
-        return statements  # Otherwise, return the list of statements
+            return statements[0]
+        return statements
 
     def statement(self):
         if self.current_token.type == TokenType.DEFUN:
@@ -179,7 +189,7 @@ class Parser:
                     params.append(self.current_token.value)
                     self.eat(TokenType.IDENTIFIER)
             self.eat(TokenType.RPAREN)
-            body = self.block()  # Use block to parse the function body
+            body = self.block()
             return Function(func_name, params, body)
         elif self.current_token.type == TokenType.IF:
             self.eat(TokenType.IF)
@@ -190,8 +200,26 @@ class Parser:
                 self.eat(TokenType.ELSE)
                 else_branch = self.block()
             return If(condition, then_branch, else_branch)
+        elif self.current_token.type == TokenType.RETURN:
+            self.eat(TokenType.RETURN)
+            expr = self.expr()
+            return Return(expr)
         else:
             return self.boolean_expr()
+
+    def lambda_expr(self):
+        self.eat(TokenType.LAMBDA)
+        params = []
+        if self.current_token.type == TokenType.IDENTIFIER:
+            params.append(self.current_token.value)
+            self.eat(TokenType.IDENTIFIER)
+            while self.current_token.type == TokenType.COMMA:
+                self.eat(TokenType.COMMA)
+                params.append(self.current_token.value)
+                self.eat(TokenType.IDENTIFIER)
+        self.eat(TokenType.ARROW)
+        body = self.expr()
+        return Lambda(params, body)
 
     def parse(self):
         return self.statement()
